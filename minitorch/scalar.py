@@ -158,13 +158,32 @@ class Scalar:
         return self.history.inputs
 
     def chain_rule(self, d_output: Any) -> Iterable[Tuple[Variable, Any]]:
-        h = self.history
-        assert h is not None
-        assert h.last_fn is not None
-        assert h.ctx is not None
+        """Applies the chain rule to compute gradients w.r.t. each parent.
 
-        # TODO: Implement for Task 1.3.
-        raise NotImplementedError("Need to implement for Task 1.3")
+        Args:
+            d_output (Any): Derivative of output w.r.t. this scalar.
+
+        Returns:
+            Iterable[Tuple[Variable, Any]]: Each element of iterable contains parent Variable and corresponding local gradient.
+        """
+        h = self.history
+        assert h is not None, "Scalar history must exist for chain rule."
+        assert h.last_fn is not None, "Last function must exist for chain rule."
+        assert h.ctx is not None, "Context must exist for chain rule."
+
+        # Compute local gradients using backward method of the last function
+        # note that we need to use _backward() to make it into a tuple which is an iterable
+        # TODO understand why we need iterables here?
+        local_grads = h.last_fn._backward(h.ctx, d_output)
+
+        # pair derivatives with variables
+        chain_rule_pairs: Iterable[tuple[Variable, Any]] = zip(h.inputs, local_grads)
+        
+        # filter out constants
+        return [(var, d) for var, d in chain_rule_pairs if not var.is_constant()]
+        
+
+
 
     def backward(self, d_output: Optional[float] = None) -> None:
         """
